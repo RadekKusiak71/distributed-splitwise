@@ -1,0 +1,35 @@
+services:
+  identity-service:
+    container_name: identity-service
+    build:
+      context: ./identity-service
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    volumes:
+      - "./identity-service:/app"
+    env_file:
+      - "./identity-service/.env"
+    depends_on:
+      identity-service-db:
+        condition: service_healthy
+
+  identity-service-db:
+    container_name: "identity-service-db"
+    image: postgres:17.6
+    ports:
+      - "5432:5432"
+    volumes:
+      - "db_data:/var/lib/postgresql/data"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: identity_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d identity_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:
