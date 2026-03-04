@@ -88,6 +88,21 @@ services:
     networks:
       - requests-db-net
 
+  splitwise-worker:
+    container_name: "splitwise-worker"
+    build:
+      context: splitwise-worker
+      dockerfile: Dockerfile
+    volumes:
+      - "./splitwise-worker:/app"
+    env_file:
+      - "./splitwise-worker/.env"
+    depends_on:
+      - requests-service
+    networks:
+      - backend-net
+      - requests-db-net
+
 networks:
   gateway-net:
     driver: bridge
