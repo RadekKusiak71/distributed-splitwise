@@ -1,4 +1,5 @@
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any
 
@@ -6,6 +7,7 @@ from mypy_boto3_sqs import SQSClient
 
 from .base import AWSProvider
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class IncomingMessage:
@@ -27,13 +29,36 @@ class SQSMessageQueue(AWSProvider):
                 WaitTimeSeconds=20
             )
 
-            return [
-                IncomingMessage(
-                    id=m['MessageId'],
-                    body=json.loads(m['Body']),
-                    receipt_handle=m['ReceiptHandle']
-                ) for m in response.get('Messages', [])
-            ]
+            messages = []
+            for m in response.get('Messages', []):
+                raw_body = m.get('Body', '')
+                
+                if not raw_body or not raw_body.strip():
+                    logger.warning("Skipping empty SQS message", extra={"message_id": m['MessageId']})
+                    self.delete_message(m['ReceiptHandle'])
+                    continue
+
+                try:
+                    parsed_body = json.loads(raw_body)
+                    messages.append(
+                        IncomingMessage(
+                            id=m['MessageId'],
+                            body=parsed_body,
+                            receipt_handle=m['ReceiptHandle']
+                        )
+                    )
+                except json.JSONDecodeError:
+                    logger.error(
+                        "Failed to decode SQS message JSON", 
+                        extra={
+                            "message_id": m['MessageId'],
+                            "raw_body": raw_body
+                        }
+                    )
+                    self.delete_message(m['ReceiptHandle'])
+                    continue
+            
+            return messages
 
     def delete_message(self, receipt_handle: str) -> None:
         with self._get_client('sqs') as sqs:
