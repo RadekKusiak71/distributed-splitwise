@@ -30,6 +30,7 @@ func main() {
 
 	r.Group(func(r chi.Router) {
 		r.Use(jwtMgr.JWTMiddleware)
+		r.Handle("/api/v1/requests/*", proxy.New(cfg.RequestsServiceURL))
 	})
 
 	log.Printf("Gateway service is running on port :80")
