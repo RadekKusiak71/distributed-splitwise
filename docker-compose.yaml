@@ -4,8 +4,6 @@ services:
     build:
       context: ./identity-service
       dockerfile: Dockerfile
-    ports:
-      - "8080:80"
     volumes:
       - "./identity-service:/app"
     env_file:
@@ -30,6 +28,22 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  api-gateway-service:
+    container_name: "api-gateway-service"
+    build:
+      context: gateway-service
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    volumes:
+      - "./gateway-service:/app"
+    env_file:
+      - "./gateway-service/.env"
+    depends_on:
+      - identity-service
+    
+
 
 volumes:
   db_data:
