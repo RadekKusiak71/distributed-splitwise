@@ -17,8 +17,37 @@ func NewHandler(requestService RequestsService) *handler {
 	return &handler{requestService: requestService}
 }
 
-func (h *handler) HandleGetAllRequests(w http.ResponseWriter, r *http.Request) error { return nil }
-func (h *handler) HandleGetRequestByID(w http.ResponseWriter, r *http.Request) error { return nil }
+func (h *handler) HandleGetAllRequests(w http.ResponseWriter, r *http.Request) error {
+	userID, err := auth.GetUserIDFromRequest(r)
+	if err != nil {
+		return err
+	}
+
+	res, err := h.requestService.GetAllRequests(r.Context(), userID)
+	if err != nil {
+		return err
+	}
+	return utils.WriteJSON(w, http.StatusOK, res)
+}
+
+func (h *handler) HandleGetRequestByID(w http.ResponseWriter, r *http.Request) error {
+	userID, err := auth.GetUserIDFromRequest(r)
+	if err != nil {
+		return err
+	}
+
+	requestID, err := GetRequestIDFromRequest(r)
+	if err != nil {
+		return err
+	}
+
+	res, err := h.requestService.GetRequestByID(r.Context(), userID, requestID)
+	if err != nil {
+		return err
+	}
+	return utils.WriteJSON(w, http.StatusOK, res)
+}
+
 func (h *handler) HandleCreateRequest(w http.ResponseWriter, r *http.Request) error {
 	r.ParseMultipartForm(20 << 20) // 20 MB file
 	userID, err := auth.GetUserIDFromRequest(r)

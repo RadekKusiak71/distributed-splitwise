@@ -11,69 +11,85 @@ import (
 	"github.com/google/uuid"
 )
 
-var (
-	ValidExstenstions = []string{".csv"}
-)
+var ValidExtensions = []string{".csv"}
 
 type service struct {
 	requestStore RequestsStore
 	uploader     FileUploader
 }
 
-func NewService(requestStore RequestsStore, uploader FileUploader) *service {
+func NewService(requestStore RequestsStore, uploader FileUploader) RequestsService {
 	return &service{requestStore: requestStore, uploader: uploader}
 }
 
-func (s *service) GetAllRequests(ctx context.Context, userID string) ([]Request, error) {
-	return nil, nil
-}
-func (s *service) GetRequestByID(ctx context.Context, userID string, requestID string) (*Request, error) {
-	return nil, nil
-}
-func (s *service) CreateRequest(
-	ctx context.Context,
-	userID, idempotencyKey string,
-	file multipart.File,
-	fileHeaders *multipart.FileHeader,
-) (*CreateRequestResponse, error) {
-	if idempotencyKey, err := s.requestStore.GetByIdempotency(ctx, userID, idempotencyKey); idempotencyKey != nil {
-		if err != nil && !errors.Is(err, ErrRequestNotFound) {
-			return nil, err
-		}
-		return nil, APIErrRequestIsScheduledToProcess
+func (s *service) GetAllRequests(ctx context.Context, userID string) ([]*RequestResponse, error) {
+	reqs, err := s.requestStore.GetAll(ctx, userID)
+	if err != nil {
+		return nil, err
 	}
 
-	fileName := fileHeaders.Filename
-	fileExt := filepath.Ext(fileName)
+	var res []*RequestResponse
+	for _, r := range reqs {
+		res = append(res, s.mapToResponse(r))
+	}
+	return res, nil
+}
 
-	if ok := s.validateUploadExtension(fileExt, ValidExstenstions); !ok {
-		return nil, APIErrInvalidFileExstension
+func (s *service) GetRequestByID(ctx context.Context, userID, requestID string) (*RequestResponse, error) {
+	req, err := s.requestStore.GetByID(ctx, userID, requestID)
+	if err != nil {
+		return nil, err
+	}
+	if req == nil {
+		return nil, errors.New("request not found")
+	}
+	return s.mapToResponse(req), nil
+}
+
+func (s *service) CreateRequest(ctx context.Context, userID, idempotencyKey string, file multipart.File, fileHeaders *multipart.FileHeader) (*CreateRequestResponse, error) {
+	existing, _ := s.requestStore.GetByIdempotency(ctx, userID, idempotencyKey)
+	if existing != nil {
+		return nil, errors.New("request already exists (idempotency conflict)")
 	}
 
-	fileKey := s.generateUniqueKey(fileExt, fileExt)
+	fileExt := filepath.Ext(fileHeaders.Filename)
+	if !slices.Contains(ValidExtensions, fileExt) {
+		return nil, errors.New("invalid file extension")
+	}
+
+	fileKey := fmt.Sprintf("uploads/%s/%s%s", userID, uuid.New().String(), fileExt)
 	if err := s.uploader.Upload(ctx, fileKey, file); err != nil {
 		return nil, err
 	}
 
 	req := NewRequest(userID, idempotencyKey, fileKey)
-
 	if err := s.requestStore.Save(ctx, req); err != nil {
 		return nil, err
 	}
 
 	return &CreateRequestResponse{
-		ID:             req.ID(),
-		IdempotencyKey: req.IdempotencyKey(),
-		Status:         req.Status(),
-		FileLink:       s.uploader.GenerateObjectURL(req.InputS3Key()),
-		CreatedAt:      req.CreatedAt(),
+		ID:             req.id,
+		IdempotencyKey: req.idempotencyKey,
+		Status:         req.status,
+		FileLink:       s.uploader.GenerateObjectURL(req.inputS3Key),
+		CreatedAt:      req.createdAt,
 	}, nil
 }
 
-func (s *service) generateUniqueKey(fileName string, ext string) string {
-	return fmt.Sprintf("%v-%v%v", uuid.New(), fileName, ext)
-}
+func (s *service) mapToResponse(r *Request) *RequestResponse {
+	var outLinkPtr *string
 
-func (s *service) validateUploadExtension(ext string, validExstensions []string) bool {
-	return slices.Contains(validExstensions, ext)
+	if r.outputS3Key.Valid && r.outputS3Key.String != "" {
+		link := s.uploader.GenerateObjectURL(r.outputS3Key.String)
+		outLinkPtr = &link
+	}
+
+	return &RequestResponse{
+		ID:             r.id,
+		Status:         r.status,
+		InputFileLink:  s.uploader.GenerateObjectURL(r.inputS3Key),
+		OutputFileLink: outLinkPtr,
+		CreatedAt:      r.createdAt,
+		UpdatedAt:      r.updatedAt,
+	}
 }
