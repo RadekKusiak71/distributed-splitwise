@@ -11,14 +11,18 @@ services:
     depends_on:
       identity-service-db:
         condition: service_healthy
-
+    networks:
+      - identity-db-net
+      - gateway-net
+      - backend-net
+    
   identity-service-db:
     container_name: "identity-service-db"
     image: postgres:17.6
     ports:
       - "5432:5432"
     volumes:
-      - "db_data:/var/lib/postgresql/data"
+      - "identity_db_data:/var/lib/postgresql/data"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -28,6 +32,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - identity-db-net
 
   api-gateway-service:
     container_name: "api-gateway-service"
@@ -42,8 +48,56 @@ services:
       - "./gateway-service/.env"
     depends_on:
       - identity-service
-    
+      - requests-service
+    networks:
+      - gateway-net
 
+  requests-service:
+    container_name: "requests-service"
+    build:
+      context: requests-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - "./requests-service:/app"
+    env_file:
+      - "./requests-service/.env"
+    depends_on:
+      requests-service-db:
+        condition: service_healthy
+    networks:
+      - requests-db-net
+      - gateway-net
+      - backend-net
+  
+  requests-service-db:
+    container_name: "requests-service-db"
+    image: postgres:17.6
+    ports:
+      - "5433:5432"
+    volumes:
+      - "requests_db_data:/var/lib/postgresql/data"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: requests_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d requests_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5  
+    networks:
+      - requests-db-net
+
+networks:
+  gateway-net:
+    driver: bridge
+  backend-net:
+    driver: bridge
+  identity-db-net:
+    internal: true
+  requests-db-net:
+    internal: true
 
 volumes:
-  db_data:
+  identity_db_data:
+  requests_db_data:

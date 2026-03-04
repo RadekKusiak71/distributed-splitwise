@@ -30,11 +30,11 @@ func main() {
 
 	r.Group(func(r chi.Router) {
 		r.Use(jwtMgr.JWTMiddleware)
+		r.Handle("/api/v1/requests", proxy.New(cfg.RequestsServiceURL))
 		r.Handle("/api/v1/requests/*", proxy.New(cfg.RequestsServiceURL))
 	})
 
 	log.Printf("Gateway service is running on port :80")
-	log.Printf("Routing /api/v1 to %s", cfg.IdentityServiceURL)
 
 	server := &http.Server{
 		Addr:         ":80",

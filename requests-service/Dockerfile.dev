@@ -1,0 +1,25 @@
+FROM golang:1.25.5-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache make
+
+RUN go install github.com/air-verse/air@latest
+
+RUN go install github.com/pressly/goose/v3/cmd/goose@latest
+
+COPY go.* .
+
+RUN go mod download
+
+COPY . .
+
+COPY ./entrypoint.sh /usr/local/bin/entrypoint.sh
+
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+EXPOSE 80
+
+ENV IS_DEBUG=False
+
+CMD ["entrypoint.sh"]

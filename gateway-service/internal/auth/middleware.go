@@ -31,8 +31,7 @@ func (jm *JWTManager) JWTMiddleware(next http.Handler) http.Handler {
 			http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
 			return
 		}
-
-		ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
+		ctx := context.WithValue(r.Context(), UserIDKey, claims.Subject)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

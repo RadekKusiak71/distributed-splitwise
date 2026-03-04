@@ -20,13 +20,11 @@ func NewJWTManager(secretKey string) *JWTManager {
 	return &JWTManager{secretKey: secretKey}
 }
 
-// Verify sprawdza czy token jest poprawny i zwraca dane użytkownika
 func (jm *JWTManager) Verify(tokenString string) (*AccessTokenClaims, error) {
 	token, err := jwt.ParseWithClaims(
 		tokenString,
 		&AccessTokenClaims{},
 		func(token *jwt.Token) (interface{}, error) {
-			// Sprawdzamy metodę podpisu (musi być HMAC, czyli HS256)
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
