@@ -6,6 +6,7 @@ import (
 
 	"github.com/RadekKusiak71/splitwise-requests/internal/auth"
 	"github.com/RadekKusiak71/splitwise-requests/internal/core/errors"
+	"github.com/RadekKusiak71/splitwise-requests/internal/core/queue"
 	"github.com/RadekKusiak71/splitwise-requests/internal/core/server/middlewares"
 	"github.com/RadekKusiak71/splitwise-requests/internal/core/storage"
 	"github.com/RadekKusiak71/splitwise-requests/internal/requests"
@@ -31,8 +32,14 @@ func (as *apiserver) SetupRoutes() *chi.Mux {
 	}
 	uploader := storage.NewS3Uploader(s3Client, &as.cfg.AWS)
 
+	sqsClient, err := queue.NewSQSClient(as.cfg.AWS.Region)
+	if err != nil {
+		log.Fatalf("Couldn't create SQS client: %s", err.Error())
+	}
+	publisher := queue.NewSQSPublisher(sqsClient, as.cfg.AWS.SQSQueueURL)
+
 	requestsStore := requests.NewStore(as.db)
-	requestsService := requests.NewService(requestsStore, uploader)
+	requestsService := requests.NewService(requestsStore, uploader, publisher)
 	requestsHandler := requests.NewHandler(requestsService)
 
 	v1.Route("/requests", func(r chi.Router) {

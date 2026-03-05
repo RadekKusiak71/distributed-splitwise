@@ -16,10 +16,11 @@ var ValidExtensions = []string{".csv"}
 type service struct {
 	requestStore RequestsStore
 	uploader     FileUploader
+	publisher    MessagePublisher
 }
 
-func NewService(requestStore RequestsStore, uploader FileUploader) RequestsService {
-	return &service{requestStore: requestStore, uploader: uploader}
+func NewService(requestStore RequestsStore, uploader FileUploader, publisher MessagePublisher) RequestsService {
+	return &service{requestStore: requestStore, uploader: uploader, publisher: publisher}
 }
 
 func (s *service) GetAllRequests(ctx context.Context, userID string) ([]*RequestResponse, error) {
@@ -65,6 +66,14 @@ func (s *service) CreateRequest(ctx context.Context, userID, idempotencyKey stri
 	req := NewRequest(userID, idempotencyKey, fileKey)
 	if err := s.requestStore.Save(ctx, req); err != nil {
 		return nil, err
+	}
+
+	msg := map[string]string{
+		"request_id":  req.id,
+		"s3_file_key": req.inputS3Key,
+	}
+	if err := s.publisher.Publish(ctx, msg); err != nil {
+		return nil, fmt.Errorf("publish sqs message: %w", err)
 	}
 
 	return &CreateRequestResponse{

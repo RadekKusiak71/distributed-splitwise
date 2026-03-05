@@ -22,11 +22,12 @@ type JWTConfig struct {
 }
 
 type AWSConfig struct {
-	AccessKey  string
-	SecretKey  string
-	Region     string
-	BucketName string
-	S3BaseURL  string
+	AccessKey   string
+	SecretKey   string
+	Region      string
+	BucketName  string
+	S3BaseURL   string
+	SQSQueueURL string
 }
 
 type Config struct {
@@ -52,11 +53,12 @@ func Load() *Config {
 			SecretKey: GetEnv("JWT_SECRET_KEY", "very-secret"),
 		},
 		AWS: AWSConfig{
-			AccessKey:  GetEnv("AWS_ACCESS_KEY", "test"),
-			SecretKey:  GetEnv("AWS_SECRET_KEY", "test"),
-			Region:     GetEnv("AWS_S3_REGION", "eu-central-1"),
-			BucketName: GetEnv("AWS_S3_BUCKET_NAME", "test"),
-			S3BaseURL:  GetEnv("AWS_S3_BASE_URL", "https://test.s3.eu-central-1.amazonaws.com/"),
+			AccessKey:   GetEnv("AWS_ACCESS_KEY", "test"),
+			SecretKey:   GetEnv("AWS_SECRET_KEY", "test"),
+			Region:      GetEnv("AWS_S3_REGION", "eu-central-1"),
+			BucketName:  GetEnv("AWS_S3_BUCKET_NAME", "test"),
+			S3BaseURL:   GetEnv("AWS_S3_BASE_URL", "https://test.s3.eu-central-1.amazonaws.com/"),
+			SQSQueueURL: GetEnv("AWS_SQS_QUEUE_URL", ""),
 		},
 	}
 }

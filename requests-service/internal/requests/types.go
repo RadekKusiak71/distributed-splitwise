@@ -48,3 +48,7 @@ type FileUploader interface {
 	Upload(ctx context.Context, key string, file io.Reader) error
 	GenerateObjectURL(key string) string
 }
+
+type MessagePublisher interface {
+	Publish(ctx context.Context, message any) error
+}
