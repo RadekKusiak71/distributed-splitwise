@@ -4,6 +4,7 @@ from src.core.config import Config
 from src.core.aws.s3 import S3FileRepository
 from src.core.aws.sqs import SQSMessageQueue
 from src.service.process_splitwise import ProcessCSVUseCase
+from src.core.postgres import PostgresRequestRepository
 from .worker import Worker
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,8 @@ if __name__ == "__main__":
         secret_key=config.AWS_SECRET_KEY,
         region=config.AWS_S3_REGION,
     )
+
+    pq_repo = PostgresRequestRepository(dsn=config.POSTGRES_DNS)
     
     sqs_queue = SQSMessageQueue(
         queue_url=config.AWS_QUEUE_URL,
@@ -29,7 +32,7 @@ if __name__ == "__main__":
         region=config.AWS_S3_REGION,
     )
 
-    processor = ProcessCSVUseCase(file_repo=s3_repo)
+    processor = ProcessCSVUseCase(file_repo=s3_repo, request_repo=pq_repo)
     worker = Worker(queue=sqs_queue, use_case=processor)
 
     worker.run_forever()
